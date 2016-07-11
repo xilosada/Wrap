@@ -134,13 +134,13 @@ class WrapTests: XCTestCase {
             let date: NSDate
         }
         
-        let dateFormatter = NSDateFormatter()
+        let dateFormatter = DateFormatter()
         
         do {
             let model = Model(date: date)
             
             try VerifyDictionary(Wrap(model, dateFormatter: dateFormatter), againstDictionary: [
-                "date" : dateFormatter.stringFromDate(date)
+                "date" : dateFormatter.string(from: date as Date)
             ])
         } catch {
             XCTFail(error.toString())
@@ -480,7 +480,7 @@ class WrapTests: XCTestCase {
     func testObjectiveCObjectProperties() {
         struct Model {
             let string = NSString(string: "Hello")
-            let number = NSNumber(integer: 17)
+            let number = NSNumber(value: 17)
             let array = NSArray(object: NSString(string: "Unwrap"))
         }
         
@@ -631,7 +631,7 @@ class WrapTests: XCTestCase {
         }
         
         do {
-            try Wrap(Model()) as WrappedDictionary
+            let _: WrappedDictionary = try Wrap(Model())
             XCTFail("Should have thrown")
         } catch WrapError.WrappingFailedForObject(let object) {
             XCTAssertTrue(object is Model)
@@ -650,7 +650,7 @@ class WrapTests: XCTestCase {
         }
         
         do {
-            try Wrap(Model()) as WrappedDictionary
+            let _: WrappedDictionary = try Wrap(Model())
             XCTFail("Should have thrown")
         } catch WrapError.WrappingFailedForObject(let object) {
             XCTAssertTrue(object is Model)
@@ -661,7 +661,7 @@ class WrapTests: XCTestCase {
     
     func testInvalidRootObjectThrows() {
         do {
-            try Wrap("A string") as WrappedDictionary
+            let _: WrappedDictionary = try Wrap("A string")
         } catch WrapError.InvalidTopLevelObject(let object) {
             XCTAssertEqual((object as? String) ?? "", "A string")
         } catch {
@@ -678,7 +678,7 @@ class WrapTests: XCTestCase {
         
         do {
             let data: NSData = try Wrap(Model())
-            let object = try NSJSONSerialization.JSONObjectWithData(data, options: [])
+            let object = try JSONSerialization.jsonObject(with: data as Data, options: [])
             
             guard let dictionary = object as? WrappedDictionary else {
                 return XCTFail("Invalid encoded type")
@@ -722,7 +722,7 @@ private protocol MockProtocol {
 
 // MARK: - Utilities
 
-private enum VerificationError: ErrorType {
+private enum VerificationError: ErrorProtocol {
     case CountMismatch
     case CannotVerifyValue(AnyObject)
     case MissingValueForKey(String)
@@ -736,7 +736,7 @@ private protocol Verifiable {
 extension NSNumber: Verifiable {}
 extension NSString: Verifiable {}
 
-private func VerifyDictionary(dictionary: WrappedDictionary, againstDictionary expectedDictionary: WrappedDictionary) throws {
+private func VerifyDictionary(_ dictionary: WrappedDictionary, againstDictionary expectedDictionary: WrappedDictionary) throws {
     if dictionary.count != expectedDictionary.count {
         throw VerificationError.CountMismatch
     }
@@ -768,11 +768,11 @@ private func VerifyDictionary(dictionary: WrappedDictionary, againstDictionary e
     }
 }
 
-private func VerifyArray(actualArray: [AnyObject], againstArray expectedArray: [AnyObject]) throws {
+private func VerifyArray(_ actualArray: [AnyObject], againstArray expectedArray: [AnyObject]) throws {
     if actualArray.count != expectedArray.count {
         throw VerificationError.CountMismatch
     }
-    for (index, expectedValue) in expectedArray.enumerate() {
+    for (index, expectedValue) in expectedArray.enumerated() {
         let actualValue = actualArray[index]
 
         if let expectedNestedDictionary = expectedValue as? WrappedDictionary {
@@ -797,7 +797,7 @@ private func VerifyArray(actualArray: [AnyObject], againstArray expectedArray: [
     }
 }
 
-private func VerifyValue(value: AnyObject, againstValue expectedValue: AnyObject) throws {
+private func VerifyValue(_ value: AnyObject, againstValue expectedValue: AnyObject) throws {
     guard let expectedVerifiableValue = expectedValue as? Verifiable else {
         throw VerificationError.CannotVerifyValue(expectedValue)
     }
@@ -811,7 +811,7 @@ private func VerifyValue(value: AnyObject, againstValue expectedValue: AnyObject
     }
 }
 
-private extension ErrorType {
+private extension ErrorProtocol {
     func toString() -> String {
         if let stringConvertible = self as? CustomStringConvertible {
             return stringConvertible.description
